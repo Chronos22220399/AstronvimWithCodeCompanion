@@ -1,0 +1,1 @@
+export DEEPSEEK_API_KEY="sk-6e7196824e054caab7a3e0101f8ca665"
