@@ -1,3 +1,6 @@
+# 说明
+由于更改前未 fork，因此这里补上说明并 fork 到仓库
+
 # AstroNvim Template
 
 **NOTE:** This is for AstroNvim v5+
