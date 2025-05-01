@@ -22,28 +22,62 @@ return {
           default = "deepseek-ai/DeepSeek-R1",
           choices = {
             ["deepseek-ai/DeepSeek-R1"] = { opts = { can_reason = true } },
-            "deepseek-ai/DeepSeek-V3",
+            ["deepseek-ai/DeepSeek-V3"] = {},
           },
         },
       },
     })
 
+    -- Qwen 适配器配置（用于快速响应）
+    local qwen = adapters.extend("openai_compatible", {
+      name = "qwen",
+      url = "https://api.siliconflow.cn/v1/chat/completions",
+      env = {
+        api_key = function()
+          return os.getenv("DEEPSEEK_API_KEY_S")
+        end,
+      },
+      schema = {
+        model = {
+          default = "Qwen/QwQ-32B",
+          choices = { "Qwen/QwQ-32B" }
+        },
+        parameters = {
+          temperature = 0.7,
+          top_p = 0.7,
+          max_tokens = 512,
+          stream = true  -- 启用流式响应加速输出
+        }
+      }
+    })
+    
     require("codecompanion").setup({
       adapters = {
         siliconflow_r1 = function() return siliconflow_r1 end,
+        qwen = function() return qwen end,
       },
 
+      -- 策略配置
       strategies = {
-        chat = { adapter = "siliconflow_r1" },
+        -- 默认代码操作使用 Qwen（快速）
         inline = {
+          adapter = "qwen",
+          parameters = {
+            model = "Qwen/QwQ-32B",
+          }
+        },
+
+        -- 聊天对话使用 DeepSeek（逻辑推理）
+        chat = {
           adapter = "siliconflow_r1",
           parameters = {
-            model = "deepseek-ai/DeepSeek-V3",
-          },
-        },
-        agent = { adapter = "siliconflow_r1" },
+            model = "deepseek-ai/DeepSeek-R1",
+            temperature = 0.3,  -- 更低温度增强确定性
+            max_tokens = 1024
+          }
+        }
       },
-
+      
       opts = {
         language = "Chinese",
       },
@@ -101,16 +135,52 @@ return {
             },
           },
         },
+        
+        ["快速代码建议"] = {
+          strategy = "inline",
+          description = "Qwen 快速代码建议",
+          opts = {
+            modes = { "n", "v" },
+            auto_submit = true,
+            adapter = {
+              name = "qwen",
+              model = "Qwen/QwQ-32B"
+            }
+          },
+          prompts = {
+            {
+              role = "system",
+              content = "你是一个高效的代码助手，请用最简洁的方式给出代码建议",
+              opts = { visible = false }
+            }
+          }
+        },
       },
+
     })
 
     -- 快捷键设置
-    vim.keymap.set({ "n", "v", "x" }, "<leader>aa", function()
-      require("codecompanion").toggle()
-    end, { desc = "Toggle CodeCompanion (UI)" })
+    local map = vim.keymap.set
+    local opts = { noremap = true, silent = true }
 
-    vim.keymap.set({ "n", "v", "x" }, "<leader>ap", "<cmd>CodeCompanionActions<CR>", {
-      desc = "Open CodeCompanion Actions (UI)",
+    -- 主输入框（顶部弹出输入栏）
+    map("n", "<leader>at", "<cmd>CodeCompanion<CR>", {
+      desc = "Open CodeCompanion input (main UI)",
+    })
+
+    -- Chat 聊天界面
+    map("n", "<leader>aj", "<cmd>CodeCompanionChat<CR>", {
+      desc = "Open CodeCompanion Chat UI",
+    })
+
+    -- Actions 动作面板
+    map("n", "<leader>aa", "<cmd>CodeCompanionActions<CR>", {
+      desc = "Open CodeCompanion Actions UI",
+    })
+
+    -- Cmd 模式（自然语言 Vim 命令）
+    map("n", "<leader>ax", "<cmd>CodeCompanionCmd<CR>", {
+      desc = "Run natural language Vim command",
     })
   end,
 }
