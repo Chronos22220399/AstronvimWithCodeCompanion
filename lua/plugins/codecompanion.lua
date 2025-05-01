@@ -5,7 +5,9 @@ return {
     "nvim-treesitter/nvim-treesitter",
     "nvim-telescope/telescope.nvim",  -- 可选
     "stevearc/dressing.nvim",         -- 可选
+    "echasnovski/mini.diff",          -- 差异显示
   },
+  
   config = function()
     local adapters = require("codecompanion.adapters")
 
@@ -29,7 +31,7 @@ return {
     })
 
     -- Qwen 适配器配置（用于快速响应）
-    local qwen = adapters.extend("openai_compatible", {
+    local qwen = adapters.extend("openai", {
       name = "qwen",
       url = "https://api.siliconflow.cn/v1/chat/completions",
       env = {
@@ -42,16 +44,16 @@ return {
           default = "Qwen/QwQ-32B",
           choices = { "Qwen/QwQ-32B" }
         },
-        parameters = {
-          temperature = 0.7,
-          top_p = 0.7,
-          max_tokens = 512,
-          stream = true  -- 启用流式响应加速输出
-        }
+        stream = { default = true },  -- 启用流式响应加速输出
+        temperature = { 0.7 },
+        top_p = { 0.7 },
+        max_tokens = { 512 },
       }
     })
     
     require("codecompanion").setup({
+      log_level = "DEBUG",
+      
       adapters = {
         siliconflow_r1 = function() return siliconflow_r1 end,
         qwen = function() return qwen end,
@@ -64,11 +66,25 @@ return {
           adapter = "qwen",
           parameters = {
             model = "Qwen/QwQ-32B",
+            stream = true,
+            stream_delay = 50
+          },
+          keymaps = {
+            accept_change = {
+              modes = { "n", "v" },
+              description = "实时接受更改", 
+              keys = "<C-a>" 
+            },
+            reject_change = {
+              modes = { "n", "v" },
+              description = "拒绝更改",
+              keys = "<C-r>"
+            }
           }
         },
 
         -- 聊天对话使用 DeepSeek（逻辑推理）
-        chat = {
+        chat ={
           adapter = "siliconflow_r1",
           parameters = {
             model = "deepseek-ai/DeepSeek-R1",
@@ -77,9 +93,36 @@ return {
           }
         }
       },
+
+      display = {
+        diff = {
+          enabled = true,
+          provider = "mini_diff",
+          layout = "vertical",
+          opts = {
+            view = { 
+              style = "sign",
+              priority = 1000,  -- 提高渲染优先级
+              update_delay = 30  -- 缩短渲染间隔
+            },
+            mappings = {
+              apply = "<C-a>",   -- 实时应用更改
+              reset = "<C-r>"    -- 重置更改
+            }
+          }
+        },
+        inline = {
+          live_edit = true,  -- 启用实时编辑模式
+          highlight_changes = true  -- 高亮变化部分
+        }
+      },
       
       opts = {
         language = "Chinese",
+        async = true,
+        stream_buffer_size = 2048,
+        render_interval = 30,
+        partial_update = true
       },
 
       prompt_library = {
@@ -142,9 +185,13 @@ return {
           opts = {
             modes = { "n", "v" },
             auto_submit = true,
+            stream = true,
             adapter = {
               name = "qwen",
-              model = "Qwen/QwQ-32B"
+              model = "Qwen/QwQ-32B",
+              parameters = {
+                stream_delta = true
+              },
             }
           },
           prompts = {
@@ -184,3 +231,7 @@ return {
     })
   end,
 }
+
+
+
+
